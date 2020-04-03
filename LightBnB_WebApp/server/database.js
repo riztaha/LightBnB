@@ -19,17 +19,17 @@ const users = require("./json/users.json");
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function(email) {
-  let user;
-  for (const userId in users) {
-    user = users[userId];
-    if (user.email.toLowerCase() === email.toLowerCase()) {
-      break;
-    } else {
-      user = null;
-    }
-  }
-  return Promise.resolve(user);
+  return pool
+    .query(
+      `
+  SELECT * FROM users
+  WHERE email = $1;
+  `,
+      [email]
+    )
+    .then(res => res.rows[0]);
 };
+
 exports.getUserWithEmail = getUserWithEmail;
 
 /**
@@ -38,7 +38,15 @@ exports.getUserWithEmail = getUserWithEmail;
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function(id) {
-  return Promise.resolve(users[id]);
+  return pool
+    .query(
+      `
+  SELECT id, name, email FROM users
+  WHERE id = $1;
+  `,
+      [id]
+    )
+    .then(res => res.rows[0]);
 };
 exports.getUserWithId = getUserWithId;
 
@@ -87,13 +95,6 @@ const getAllProperties = function(options, limit = 10) {
     )
     .then(res => res.rows);
 };
-
-//   const limitedProperties = {};
-//   for (let i = 1; i <= limit; i++) {
-//     limitedProperties[i] = properties[i];
-//   }
-//   return Promise.resolve(limitedProperties);
-// };
 
 exports.getAllProperties = getAllProperties;
 
