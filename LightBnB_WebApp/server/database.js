@@ -69,11 +69,6 @@ const addUser = function(user) {
     )
     .then(res => res.rows[0])
     .catch(res => err);
-
-  // const userId = Object.keys(users).length + 1;
-  // user.id = userId;
-  // users[userId] = user;
-  // return Promise.resolve(user);
 };
 exports.addUser = addUser;
 
