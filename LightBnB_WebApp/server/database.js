@@ -11,7 +11,9 @@ const pool = new Pool({
 const properties = require("./json/properties.json");
 const users = require("./json/users.json");
 
-/// Users
+//////////////////////////////////////
+/// ----------- Users ----------- ///
+////////////////////////////////////
 
 /**
  * Get a single user from the database given their email.
@@ -72,7 +74,9 @@ const addUser = function(user) {
 };
 exports.addUser = addUser;
 
-/// Reservations
+/////////////////////////////////////////////
+/// ----------- Reservations ----------- ///
+///////////////////////////////////////////
 
 /**
  * Get all reservations for a single user.
@@ -99,7 +103,9 @@ const getAllReservations = function(guest_id, limit = 10) {
 };
 exports.getAllReservations = getAllReservations;
 
-/// Properties
+///////////////////////////////////////////
+/// ----------- Properties ----------- ///
+/////////////////////////////////////////
 
 /**
  * Get all properties.
@@ -109,15 +115,84 @@ exports.getAllReservations = getAllReservations;
  */
 
 const getAllProperties = function(options, limit = 10) {
+  const queryParams = [];
+  // 2 - Start the query with all information that comes before the WHERE clause.
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+
+  // Only add 'WHERE' clause if options has some values
+  if (Object.values(options).join("")) {
+    queryString += `WHERE `;
+  }
+  // Check if a city has been passed in as an option. Add the city to the params array and create a WHERE clause for the city.
+  // We can use the length of the array to dynamically get the $n placeholder number. Since this is the first parameter, it will be $1.
+  // The % syntax for the LIKE clause must be part of the parameter, not the query.
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `city LIKE $${queryParams.length} AND `;
+  }
+
+  // If the user clicks 'My Listings' then the page will set to view all the listings of the id that is
+  // logged in with the following code:
+  if (options.owner_id) {
+    queryParams.push(`${options.owner_id}`);
+    queryString += `owner_id = $${queryParams.length} AND `;
+  }
+
+  // If there is only a minimum price and no max price, then query to find properties matching the min price.
+  // * 100 because all prices are in cents, user can input 12 to find properties
+  // with min cost of $12/night instead of having them type 1200 to return 1200 pennies/night
+  if (options.minimum_price_per_night) {
+    queryParams.push(Number(options.minimum_price_per_night) * 100);
+    queryString += `cost_per_night >= $${queryParams.length} AND `;
+  }
+
+  // If there is only a max price and no min price then only the max price query will run:
+  if (options.maximum_price_per_night) {
+    queryParams.push(Number(options.maximum_price_per_night) * 100);
+    queryString += `cost_per_night <= $${queryParams.length} AND `;
+  }
+
+  // Get rid of last 'AND' if it exists in the query:
+  if (queryString.endsWith(" AND ")) {
+    queryString = queryString.slice(0, -5);
+  }
+
+  if (options.minimum_rating) {
+    queryParams.push();
+  }
+
+  // If there is a rating search, the SQL query will require a HAVING in it.
+  // Remember, HAVING occurs  after the GROUP:
+  queryString += `
+  GROUP BY properties.id`;
+
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryString += `
+    HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
+  }
+
+  // The rest of the query can be passed:
+  queryParams.push(limit);
+  queryString += `
+  ORDER BY cost_per_night
+  ASC LIMIT $${queryParams.length};
+  `;
+
+  // 5 - Console log everything just to make sure we've done it right.
+  console.log("String--->", queryString, "Params ---->", queryParams);
+  console.log("options ------>", options);
+
   return pool
-    .query(
-      `
-  SELECT * FROM properties
-  LIMIT $1
-  `,
-      [limit]
-    )
-    .then(res => res.rows);
+    .query(queryString, queryParams)
+    .then(res => res.rows)
+    .catch(error => {
+      console.log(error);
+    });
 };
 
 exports.getAllProperties = getAllProperties;
