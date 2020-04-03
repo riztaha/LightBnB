@@ -123,7 +123,14 @@ const getAllProperties = function(options, limit = 10) {
   JOIN property_reviews ON properties.id = property_id
   `;
 
-  // Only add 'WHERE' clause if options has some values
+  // If the user clicks 'My Listings' then the page will set to view all the listings of the id that is
+  // logged in with the following code:
+  if (options.owner_id) {
+    queryParams.push(`${options.owner_id}`);
+    queryString += `WHERE owner_id = $${queryParams.length}`;
+  }
+  // Only add 'WHERE' clause if options has some values, will need to remove this from owner_id because
+  // it will get added to the end of owner_id
   if (Object.values(options).join("")) {
     queryString += `WHERE `;
   }
@@ -133,13 +140,6 @@ const getAllProperties = function(options, limit = 10) {
   if (options.city) {
     queryParams.push(`%${options.city}%`);
     queryString += `city LIKE $${queryParams.length} AND `;
-  }
-
-  // If the user clicks 'My Listings' then the page will set to view all the listings of the id that is
-  // logged in with the following code:
-  if (options.owner_id) {
-    queryParams.push(`${options.owner_id}`);
-    queryString += `owner_id = $${queryParams.length} AND `;
   }
 
   // If there is only a minimum price and no max price, then query to find properties matching the min price.
@@ -161,15 +161,24 @@ const getAllProperties = function(options, limit = 10) {
     queryString = queryString.slice(0, -5);
   }
 
-  // If there is a rating search, the SQL query will require a HAVING in it.
-  // Remember, HAVING occurs  after the GROUP:
-  queryString += `
-  GROUP BY properties.id`;
+  // IF The query ends in a WHERE, remove it as well:
+  // This is needed for 2 reasons. The owner_id gets a WHERE added to it by default, it
+  // needs to be removed. Also because if the search does not have anything except
+  // a rating, the WHERE will need to be removed.
+  if (queryString.endsWith("WHERE ")) {
+    queryString = queryString.slice(0, -6);
+  }
 
+  // If there is a rating search, the PostgreSQL query will require a HAVING in it.
+  // Remember, HAVING occurs after the GROUP:
+  queryString += `
+  GROUP BY properties.id
+  `;
+
+  // If the query doesn't have any other search, except for a minimum rating,
   if (options.minimum_rating) {
     queryParams.push(options.minimum_rating);
-    queryString += `
-    HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
+    queryString += `HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
   }
 
   // The rest of the query can be passed:
