@@ -1,15 +1,4 @@
-const { Pool } = require("pg");
-
-// Connecting to the lightbnb database.
-const pool = new Pool({
-  user: "vagrant",
-  password: "123",
-  host: "localhost",
-  database: "lightbnb"
-});
-
-const properties = require("./json/properties.json");
-const users = require("./json/users.json");
+const db = require("./db");
 
 //////////////////////////////////////
 /// ----------- Users ----------- ///
@@ -21,16 +10,22 @@ const users = require("./json/users.json");
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function(email) {
-  return pool
-    .query(
-      `
+  const queryString = `
   SELECT * FROM users
   WHERE email = $1;
-  `,
-      [email]
-    )
-    .then(res => res.rows[0])
-    .catch(res => null);
+  `;
+  return db
+    .query(queryString, [email])
+    .then(res => {
+      if (res.rows) {
+        return res.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch(err => {
+      console.log("error:", err);
+    });
 };
 
 exports.getUserWithEmail = getUserWithEmail;
@@ -41,19 +36,22 @@ exports.getUserWithEmail = getUserWithEmail;
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function(id) {
-  return pool
-    .query(
-      `
+  const queryString = `
   SELECT id, name, email FROM users
   WHERE id = $1;
-  `,
-      [id]
-    )
-    .then(res => res.rows[0])
-    .catch(error => {
-      console.log(error);
-    });
+  `;
+  return db
+    .query(queryString, [id])
+    .then(res => {
+      if (res.rows) {
+        return res.rows[0];
+      } else {
+        return null;
+      }
+    })
+    .catch(err => console.log("error:", err));
 };
+
 exports.getUserWithId = getUserWithId;
 
 /**
@@ -62,18 +60,17 @@ exports.getUserWithId = getUserWithId;
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function(user) {
-  return pool
-    .query(
-      `
+  const queryString = `
   INSERT INTO users (name, password, email)
   VALUES ($1, $2, $3)
   RETURNING *;
-  `,
-      [user["name"], user["password"], user["email"]]
-    )
+  `;
+  const queryParams = [user["name"], user["password"], user["email"]];
+  return db
+    .query(queryString, queryParams)
     .then(res => res.rows[0])
     .catch(error => {
-      console.log(error);
+      console.log("error:", error);
     });
 };
 exports.addUser = addUser;
@@ -88,25 +85,47 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return pool
-    .query(
-      `
-  SELECT reservations.*, properties.*, avg(rating) as average_rating FROM
-  reservations
+  const queryString = `
+  SELECT reservations.*, properties.*, avg(rating) as average_rating
+  FROM reservations
   JOIN properties ON reservations.property_id = properties.id 
   JOIN property_reviews ON property_reviews.reservation_id = reservations.id
   WHERE reservations.guest_id = $1 AND end_date < now()::date
-  GROUP BY reservations.id, properties.id
+  GROUP BY properties.id, reservations.id
   ORDER BY start_date
   LIMIT $2;
-  `,
-      [guest_id, limit]
-    )
+  `;
+  const queryParams = [guest_id, limit];
+  return db
+    .query(queryString, queryParams)
     .then(res => res.rows)
     .catch(error => {
       console.log(error);
     });
 };
+
+// const getAllReservations = function(guest_id, limit = 10) {
+//   const queryString = `
+//   SELECT properties.*, reservations.*, avg(rating) as average_rating
+//   FROM reservations
+//   JOIN properties ON reservations.property_id = properties.id
+//   JOIN property_reviews ON properties.id = property_reviews.property_id
+//   WHERE reservations.guest_id = $1
+//   AND reservations.end_date < now()::date
+//   GROUP BY properties.id, reservations.id
+//   ORDER BY reservations.start_date
+//   LIMIT $2;
+//   `;
+//   const values = [guest_id, limit];
+//   return db.query(queryString, values)
+//     .then(res => {
+//       return res.rows;
+//     })
+//     .catch(err => {
+//       return console.log('query error:', err);
+//     });
+// };
+
 exports.getAllReservations = getAllReservations;
 
 ///////////////////////////////////////////
@@ -198,7 +217,7 @@ const getAllProperties = function(options, limit = 10) {
   console.log("String--->", queryString, "Params ---->", queryParams);
   console.log("options ------>", options);
 
-  return pool
+  return db
     .query(queryString, queryParams)
     .then(res => res.rows)
     .catch(error => {
@@ -244,11 +263,13 @@ const addProperty = function(property) {
 
   console.log("Query String ------>", queryString);
   console.log("Query Params ------>", queryParams);
-  return pool
+
+  return db
     .query(queryString, queryParams)
     .then(res => res.rows[0])
     .catch(error => {
       console.log(error);
     });
 };
+
 exports.addProperty = addProperty;
