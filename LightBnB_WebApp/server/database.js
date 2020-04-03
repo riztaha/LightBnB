@@ -161,10 +161,6 @@ const getAllProperties = function(options, limit = 10) {
     queryString = queryString.slice(0, -5);
   }
 
-  if (options.minimum_rating) {
-    queryParams.push();
-  }
-
   // If there is a rating search, the SQL query will require a HAVING in it.
   // Remember, HAVING occurs  after the GROUP:
   queryString += `
