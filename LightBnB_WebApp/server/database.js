@@ -50,7 +50,9 @@ const getUserWithId = function(id) {
       [id]
     )
     .then(res => res.rows[0])
-    .catch(res => null);
+    .catch(error => {
+      console.log(error);
+    });
 };
 exports.getUserWithId = getUserWithId;
 
@@ -70,7 +72,9 @@ const addUser = function(user) {
       [user["name"], user["password"], user["email"]]
     )
     .then(res => res.rows[0])
-    .catch(res => err);
+    .catch(error => {
+      console.log(error);
+    });
 };
 exports.addUser = addUser;
 
@@ -99,7 +103,9 @@ const getAllReservations = function(guest_id, limit = 10) {
       [guest_id, limit]
     )
     .then(res => res.rows)
-    .catch(err => err);
+    .catch(error => {
+      console.log(error);
+    });
 };
 exports.getAllReservations = getAllReservations;
 
