@@ -1,5 +1,7 @@
 # LightBnB
 
+Once all dependencies install 'npm run local' to run on localhost:3000
+
 ## Project Structure
 
 ```
